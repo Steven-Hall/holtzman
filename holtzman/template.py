@@ -80,11 +80,22 @@ class Template:
             self._read_char()
             self._read_variable_name()
 
+    def _read_escaped_char(self) -> None:
+        self._read_char()
+
+        # for the patterns \\ and \{
+        # pop the \ from the buffer so they become \ and {
+        # ignore everything else
+        if self._current_char in ['\\', '{']:
+            self._text_buffer.pop()
+
     def _parse_template(self) -> None:
         while self._current_char != '':
             self._text_buffer.append(self._current_char)
             if self._current_char == '{':
                 self._read_variable_string()
+            elif self._current_char == '\\':
+                self._read_escaped_char()
             else:
                 self._read_char()
 

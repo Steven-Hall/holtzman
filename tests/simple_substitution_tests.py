@@ -30,8 +30,11 @@ class SimpleSubstitutionTests:
         result = template.render({'variable': 'test'})
         assert result == "{ variable }"
 
-    @pytest.mark.skip
-    def test_escaped_opening_brace_is_replaced(self): ...
+    def test_escaped_opening_brace_is_replaced(self):
+        source = r"\{ variable }"
+        template = Template.from_string(source)
+        result = template.render({'variable': 'test'})
+        assert result == "{ variable }"
 
     @pytest.mark.skip
     def test_escaped_slash_is_replaced(self): ...
