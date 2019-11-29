@@ -8,6 +8,7 @@ __pycache__
 
 # pytest-cov
 .coverage
+htmlcov
 
 # tox
 .tox
