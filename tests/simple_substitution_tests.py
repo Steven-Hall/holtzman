@@ -9,6 +9,7 @@ import pytest
 
 from holtzman.template import Template, InvalidVariableStringError
 
+
 class SimpleSubstitutionTests:
     @pytest.mark.parametrize('source', ['{{ variable', '{{ variable }'])
     def test_invalid_variable_string_throws_error(self, source):
@@ -16,16 +17,19 @@ class SimpleSubstitutionTests:
             Template.from_string(source)
 
     def test_invalid_variable_string_error_includes_line_and_column(self):
-        source = "\n\n12345{{ variable }}54321\n\n"
+        source = "\n\n12345{{ variable }54321\n\n"
         with pytest.raises(InvalidVariableStringError) as error:
             Template.from_string(source)
 
         assert error.value.line == 3
-        assert error.value.column == 5
+        assert error.value.column == 20
 
-    @pytest.mark.skip
-    def test_single_opening_brace_is_ignored(self): ...
-    
+    def test_single_opening_brace_is_ignored(self):
+        source = "{ variable }"
+        template = Template.from_string(source)
+        result = template.render({'variable': 'test'})
+        assert result == "{ variable }"
+
     @pytest.mark.skip
     def test_escaped_opening_brace_is_replaced(self): ...
 
@@ -34,7 +38,7 @@ class SimpleSubstitutionTests:
 
     @pytest.mark.skip
     def test_back_slashes_ignored(self): ...
-    
+
     @pytest.mark.skip
     def test_variable_is_substituted_correctly(self): ...
 
