@@ -3,8 +3,8 @@ from io import StringIO
 from typing import Dict, List
 from typing_extensions import Protocol
 
-from .invalid_variable_string_error import InvalidVariableStringError
-from .nodes import TextNode
+from .errors import InvalidVariableStringError
+from .nodes import Node, TextNode, VariableNode
 
 
 class InputStream(Protocol):
@@ -21,7 +21,7 @@ class Template:
     def __init__(self, source: InputStream):
         self._source: InputStream = source
         self._text_buffer: List[str] = []
-        self._nodes: List[TextNode] = []
+        self._nodes: List[Node] = []
 
         self._line = 1
         self._column = 1
@@ -46,11 +46,17 @@ class Template:
 
     def _read_variable_name(self) -> None:
         # skip over whitespace
+
         while self._current_char.isspace():
             self._read_char()
 
-        while self._current_char.isalpha():
+        variable_value: List[str] = []
+
+        while self._current_char.isalnum():
+            variable_value.append(self._current_char)
             self._read_char()
+
+        self._nodes.append(VariableNode(''.join(variable_value)))
 
         # skip over whitespace
         while self._current_char.isspace():
@@ -64,12 +70,17 @@ class Template:
         if self._current_char != '}':
             raise InvalidVariableStringError(line=self._line, column=self._column)
 
+        self._read_char()
+
     def _read_variable_string(self) -> None:
         self._read_char()
 
         if self._current_char != '{':
             # not really a variable string so stop
             return
+
+        # pop off the last '{'
+        self._text_buffer.pop()
 
         self._nodes.append(TextNode(''.join(self._text_buffer)))
         self._text_buffer = []
@@ -78,7 +89,7 @@ class Template:
 
         while self._current_char.isspace():
             self._read_char()
-            self._read_variable_name()
+        self._read_variable_name()
 
     def _read_escaped_char(self) -> None:
         self._read_char()

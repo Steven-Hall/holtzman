@@ -7,7 +7,8 @@ in a template should be replaced by the variables value in the rendered template
 """
 import pytest
 
-from holtzman.template import Template, InvalidVariableStringError
+from holtzman.template import Template
+from holtzman.errors import InvalidVariableStringError, MissingVariableError
 
 
 class SimpleSubstitutionTests:
@@ -27,26 +28,53 @@ class SimpleSubstitutionTests:
     def test_single_opening_brace_is_ignored(self):
         source = "{ variable }"
         template = Template.from_string(source)
-        result = template.render({'variable': 'test'})
+        result = template.render({})
         assert result == "{ variable }"
 
     def test_escaped_opening_brace_is_replaced(self):
-        source = r"\{ variable }"
+        source = "\\{ variable }"
         template = Template.from_string(source)
-        result = template.render({'variable': 'test'})
+        result = template.render({})
         assert result == "{ variable }"
 
-    @pytest.mark.skip
-    def test_escaped_slash_is_replaced(self): ...
+    def test_escaped_slash_is_replaced(self):
+        source = "\\\\ variable \\\\"
+        template = Template.from_string(source)
+        result = template.render({})
+        assert result == "\\ variable \\"
 
-    @pytest.mark.skip
-    def test_back_slashes_ignored(self): ...
+    def test_single_back_slashes_ignored(self):
+        source = "\\ variable \\"
+        template = Template.from_string(source)
+        result = template.render({})
+        assert result == "\\ variable \\"
 
-    @pytest.mark.skip
-    def test_variable_is_substituted_correctly(self): ...
+    def test_variable_is_substituted_correctly(self):
+        source = "{{ variable }}"
+        template = Template.from_string(source)
+        result = template.render({"variable": "value"})
+        assert result == "value"
 
-    @pytest.mark.skip
-    def test_same_variable_is_substituted_multiple_times(self): ...
+    def test_error_is_thrown_if_template_variable_missing(self):
+        source = "{{ variable }}"
+        template = Template.from_string(source)
+        with pytest.raises(MissingVariableError) as error:
+            template.render({})
 
-    @pytest.mark.skip
-    def test_multiple_variables_are_substituted_correctly(self): ...
+        assert error.value.variable == 'variable'
+
+    def test_same_variable_is_substituted_multiple_times(self):
+        source = "{{ variable }} {{ variable }}"
+        template = Template.from_string(source)
+        result = template.render({"variable": "value"})
+        assert result == "value value"
+
+    def test_multiple_variables_are_substituted_correctly(self):
+        source = "{{ variable1 }} {{ variable2 }} {{ variable3 }}"
+        template = Template.from_string(source)
+        result = template.render({
+            "variable1": "value_1",
+            "variable2": "value_2",
+            "variable3": "value_3"
+        })
+        assert result == "value_1 value_2 value_3"

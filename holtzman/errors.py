@@ -11,3 +11,13 @@ class InvalidVariableStringError(Exception):
     @property
     def column(self) -> int:
         return self._column
+
+
+class MissingVariableError(Exception):
+    def __init__(self, variable):
+        super().__init__()
+        self._variable = variable
+
+    @property
+    def variable(self) -> str:
+        return self._variable
