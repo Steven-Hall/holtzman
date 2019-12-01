@@ -45,11 +45,6 @@ class Template:
             self._column += 1
 
     def _read_variable_name(self) -> None:
-        # skip over whitespace
-
-        while self._current_char.isspace():
-            self._read_char()
-
         variable_value: List[str] = []
 
         if not self._current_char.isalpha():

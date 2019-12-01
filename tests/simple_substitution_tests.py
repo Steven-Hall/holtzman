@@ -59,7 +59,7 @@ class SimpleSubstitutionTests:
         assert result == "\\ variable \\"
 
     def test_variable_is_substituted_correctly(self):
-        source = "{{ variable }}"
+        source = "{{   variable   }}"
         template = Template.from_string(source)
         result = template.render({"variable": "value"})
         assert result == "value"
