@@ -52,7 +52,10 @@ class Template:
 
         variable_value: List[str] = []
 
-        while self._current_char.isalnum():
+        if not self._current_char.isalpha():
+            raise InvalidVariableStringError(line=self._line, column=self._column)
+
+        while self._current_char.isalnum() or self._current_char == '_':
             variable_value.append(self._current_char)
             self._read_char()
 

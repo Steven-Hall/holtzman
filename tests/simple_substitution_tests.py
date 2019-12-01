@@ -17,6 +17,15 @@ class SimpleSubstitutionTests:
         with pytest.raises(InvalidVariableStringError):
             Template.from_string(source)
 
+    @pytest.mark.parametrize('source', ['{{ variable_1 }}'])
+    def test_valid_variable_names_do_not_throw_errors(self, source):
+        Template.from_string(source)
+
+    @pytest.mark.parametrize('source', ['{{ 1variable }}'])
+    def test_invalid_variable_names_throw_errors(self, source):
+        with pytest.raises(InvalidVariableStringError):
+            Template.from_string(source)
+
     def test_invalid_variable_string_error_includes_line_and_column(self):
         source = "\n\n12345{{ variable }54321\n\n"
         with pytest.raises(InvalidVariableStringError) as error:
