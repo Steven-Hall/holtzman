@@ -1,4 +1,4 @@
-class InvalidVariableStringError(Exception):
+class TemplateError(Exception):
     def __init__(self, *, line: int, column: int):
         super().__init__()
         self._line: int = line
@@ -11,6 +11,14 @@ class InvalidVariableStringError(Exception):
     @property
     def column(self) -> int:
         return self._column
+
+
+class InvalidVariableStringError(TemplateError):
+    pass
+
+
+class InvalidLoopStringError(TemplateError):
+    pass
 
 
 class MissingVariableError(Exception):
