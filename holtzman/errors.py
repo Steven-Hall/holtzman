@@ -1,8 +1,13 @@
 class TemplateError(Exception):
-    def __init__(self, *, line: int, column: int):
-        super().__init__()
+    def __init__(self, message: str, *, line: int, column: int):
+        self._message: str = message
         self._line: int = line
         self._column: int = column
+        super().__init__()
+
+    @property
+    def message(self) -> str:
+        return self._message
 
     @property
     def line(self) -> int:
@@ -13,18 +18,10 @@ class TemplateError(Exception):
         return self._column
 
 
-class InvalidVariableStringError(TemplateError):
-    pass
-
-
-class InvalidLoopStringError(TemplateError):
-    pass
-
-
 class MissingVariableError(Exception):
-    def __init__(self, variable):
+    def __init__(self, variable: str):
+        self._variable: str = variable
         super().__init__()
-        self._variable = variable
 
     @property
     def variable(self) -> str:

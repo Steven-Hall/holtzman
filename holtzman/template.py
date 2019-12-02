@@ -3,7 +3,7 @@ from io import StringIO
 from typing import Dict, List
 from typing_extensions import Protocol
 
-from .errors import InvalidVariableStringError
+from .errors import TemplateError
 from .nodes import Node, TextNode, VariableNode
 
 
@@ -44,38 +44,28 @@ class Template:
         else:
             self._column += 1
 
-    def _read_variable_name(self) -> None:
-        variable_value: List[str] = []
+    def _read_variable_name(self) -> str:
+        start_line: int = self._line
+        start_column: int = self._column
+
+        variable_name: List[str] = []
 
         if not self._current_char.isalpha():
-            raise InvalidVariableStringError(line=self._line, column=self._column)
+            raise TemplateError("invalid variable name", line=start_line, column=start_column)
 
         while self._current_char.isalnum() or self._current_char in ['_', '.']:
-            variable_value.append(self._current_char)
+            variable_name.append(self._current_char)
             self._read_char()
 
-        self._nodes.append(VariableNode(''.join(variable_value)))
+        return ''.join(variable_name)
 
-        # skip over whitespace
-        while self._current_char.isspace():
+    def _eat_whitespace(self):
+        while self._current_char.isspace() and self._current_char != '':
             self._read_char()
-
-        if self._current_char != '}':
-            raise InvalidVariableStringError(line=self._line, column=self._column)
-
-        self._read_char()
-
-        if self._current_char != '}':
-            raise InvalidVariableStringError(line=self._line, column=self._column)
-
-        self._read_char()
 
     def _read_variable_string(self) -> None:
-        self._read_char()
-
-        if self._current_char != '{':
-            # not really a variable string so stop
-            return
+        start_line: int = self._line
+        start_column: int = self._column - 2
 
         # pop off the last '{'
         self._text_buffer.pop()
@@ -87,7 +77,20 @@ class Template:
 
         while self._current_char.isspace():
             self._read_char()
-        self._read_variable_name()
+        variable_name: str = self._read_variable_name()
+
+        self._nodes.append(VariableNode(''.join(variable_name)))
+
+        self._eat_whitespace()
+
+        first = self._current_char
+        self._read_char()
+        second = self._current_char
+
+        if (first != '}') or (second != '}'):
+            raise TemplateError("invalid variable string", line=start_line, column=start_column)
+
+        self._read_char()
 
     def _read_escaped_char(self) -> None:
         self._read_char()
@@ -98,11 +101,72 @@ class Template:
         if self._current_char in ['\\', '{']:
             self._text_buffer.pop()
 
+    def _read_keyword(self) -> str:
+        buffer: List[str] = []
+        while not self._current_char.isspace() and self._current_char != '':
+            buffer.append(self._current_char)
+            self._read_char()
+
+        return ''.join(buffer)
+
+    def _read_loop_string(self) -> None:
+        start_line: int = self._line
+        start_column: int = self._column - 2
+
+        # pop off the '%'
+        self._text_buffer.pop()
+
+        self._nodes.append(TextNode(''.join(self._text_buffer)))
+        self._text_buffer = []
+
+        self._read_char()
+
+        self._eat_whitespace()
+
+        keyword = self._read_keyword()
+
+        # TODO keyword == 'end' is also valid here when a loop ends
+        if keyword != 'for':
+            raise TemplateError("invalid loop string", line=start_line, column=start_column)
+
+        self._eat_whitespace()
+
+        self._read_variable_name()
+
+        self._eat_whitespace()
+
+        keyword = self._read_keyword()
+
+        if keyword != 'in':
+            raise TemplateError("invalid loop string", line=start_line, column=start_column)
+
+        self._eat_whitespace()
+
+        self._read_variable_name()
+
+        self._read_char()
+        first = self._current_char
+        self._read_char()
+        second = self._current_char
+
+        if first != '%' or second != '}':
+            raise TemplateError("invalid loop string", line=start_line, column=start_column)
+
+    def _read_template_string(self) -> None:
+        self._read_char()
+
+        if self._current_char == '{':
+            self._read_variable_string()
+        elif self._current_char == '%':
+            self._read_loop_string()
+
+        # otherwise the string is not really a template string, so do nothing
+
     def _parse_template(self) -> None:
         while self._current_char != '':
             self._text_buffer.append(self._current_char)
             if self._current_char == '{':
-                self._read_variable_string()
+                self._read_template_string()
             elif self._current_char == '\\':
                 self._read_escaped_char()
             else:
