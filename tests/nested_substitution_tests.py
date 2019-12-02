@@ -27,3 +27,22 @@ class NestedSubstitutionTests:
         result = template.render({"nested": obj})
 
         assert result == "nested_value"
+
+    def test_dictionary_nested_in_object_is_substituted_correctly(self):
+        source = "{{ nested.dictionary.value }}"
+        template = Template.from_string(source)
+        TestObj = namedtuple('TestObj', ['dictionary'])
+        dictionary = {'value': 'nested_value'}
+        obj = TestObj(dictionary=dictionary)
+        result = template.render({"nested": obj})
+
+        assert result == "nested_value"
+
+    def test_object_nested_in_dictionary_is_substituted_correctly(self):
+        source = "{{ nested.object.value }}"
+        obj = {"value": "nested_value"}
+        dictionary = {"object": obj}
+        template = Template.from_string(source)
+        result = template.render({"nested": dictionary})
+
+        assert result == "nested_value"

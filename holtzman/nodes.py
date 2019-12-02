@@ -37,7 +37,10 @@ class VariableNode(Node):
         try:
             var = variables
             for word in self._name_list:
-                var = var[word]
+                if isinstance(var, dict):
+                    var = var[word]
+                else:
+                    var = getattr(var, word)
 
             return var
         except KeyError:
