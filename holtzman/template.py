@@ -50,7 +50,7 @@ class Template:
         if not self._current_char.isalpha():
             raise InvalidVariableStringError(line=self._line, column=self._column)
 
-        while self._current_char.isalnum() or self._current_char == '_':
+        while self._current_char.isalnum() or self._current_char in ['_', '.']:
             variable_value.append(self._current_char)
             self._read_char()
 
