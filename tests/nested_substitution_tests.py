@@ -6,8 +6,9 @@ Test nested variable substituion, for example:
 in a template should be replaced by the variables value in the rendered template.
 This should work for objects and dictionaries
 """
-from holtzman.template import Template
 from collections import namedtuple
+
+from holtzman.template import Template
 
 
 class NestedSubstitutionTests:
