@@ -1,58 +1,57 @@
-from typing import Any, List
-from abc import ABC, abstractmethod
+from typing_extensions import Protocol
+from typing import List, Any
 
 from .errors import MissingVariableError
 
 
-class Node(ABC):
-    @abstractmethod
+class Node(Protocol):
     def render(self, variables: Any) -> str:
         pass
 
 
-class TextNode(Node):
-    def __init__(self, value):
-        self._value = value
-        super().__init__()
+class RootNode:
+    def __init__(self):
+        self._children: List[Node] = []
 
-    def __repr__(self):
-        return f'text node: "{self._value}"'
+    def add_child(self, child: Node) -> None:
+        self._children.append(child)
+
+    def __repr__(self) -> str:
+        return f'root node: {self._children}]'
+
+    def render(self, variables: Any) -> str:
+        result = []
+        for node in self._children:
+            result.append(node.render(variables))
+        return ''.join(result)
+
+
+class TextNode:
+    def __init__(self, text: str):
+        self._text = text
+
+    def __repr__(self) -> str:
+        return f'text node: {self._text[0:20]}'
 
     def render(self, _variables: Any) -> str:
-        return self._value
+        return self._text
 
 
-class VariableNode(Node):
-    def __init__(self, value: str):
-        self._name_list: List[str] = value.split(".")
-        super().__init__()
+class VariableNode:
+    def __init__(self, variable_name_list: List[str]):
+        self._variable_name_list: List[str] = variable_name_list
 
-    def __repr__(self):
-        return f'variable node: ({self._name_list})'
+    def __repr__(self) -> str:
+        return f'variable node: {self._variable_name_list}'
 
     def render(self, variables: Any) -> str:
         var = variables
-
-        try:
-            for word in self._name_list:
+        for variable_name in self._variable_name_list:
+            try:
                 if isinstance(var, dict):
-                    var = var[word]
+                    var = var[variable_name]
                 else:
-                    var = getattr(var, word)
-            return var
-        except KeyError:
-            raise MissingVariableError(word)
-
-
-class ForLoopNode(Node):
-    def __init__(self, var_name: str, collection_name: str, child_nodes: List[Node]):
-        self._var_name: str = var_name
-        self._collection_name: str = collection_name
-        self._child_nodes: List[Node] = child_nodes
-        super().__init__()
-
-    def __repr__(self):
-        return f'for loop node: "{self._var_name}" in "{self._collection_name}"'
-
-    def render(self, variables: Any) -> str:
-        return ""
+                    var = getattr(var, variable_name)
+            except (KeyError, AttributeError):
+                raise MissingVariableError(variable_name)
+        return var

@@ -6,6 +6,7 @@ Test simple variable substituion, for example:
 in a template should be replaced by the variables value in the rendered template
 """
 import pytest
+from collections import namedtuple
 
 from holtzman.template import Template
 from holtzman.errors import TemplateError, MissingVariableError
@@ -21,17 +22,11 @@ class SimpleSubstitutionTests:
     def test_valid_variable_names_do_not_throw_errors(self, source):
         Template.from_string(source)
 
-    @pytest.mark.parametrize('source', ['{{ 1variable }}'])
-    def test_invalid_variable_names_throw_errors(self, source):
-        with pytest.raises(TemplateError):
-            Template.from_string(source)
-
     def test_invalid_variable_string_error_includes_line_and_column(self):
         source = "\n\n12345{{ variable }54321\n\n"
         with pytest.raises(TemplateError) as error:
             Template.from_string(source)
 
-        print(error.value.message)
         assert error.value.line == 3
         assert error.value.column == 6
 
@@ -53,23 +48,31 @@ class SimpleSubstitutionTests:
         result = template.render({})
         assert result == "\\ variable \\"
 
-    def test_single_back_slashes_ignored(self):
+    def test_non_escaped_back_slashes_throw_exceptions(self):
         source = "\\ variable \\"
-        template = Template.from_string(source)
-        result = template.render({})
-        assert result == "\\ variable \\"
+        with pytest.raises(TemplateError):
+            Template.from_string(source)
 
     def test_variable_is_substituted_correctly(self):
-        source = "{{   variable   }}"
+        source = "12345{{   variable   }}12345"
         template = Template.from_string(source)
         result = template.render({"variable": "value"})
-        assert result == "value"
+        assert result == "12345value12345"
 
-    def test_error_is_thrown_if_template_variable_missing(self):
+    def test_error_is_thrown_if_template_variable_missing_from_dictionary(self):
         source = "{{ variable }}"
         template = Template.from_string(source)
         with pytest.raises(MissingVariableError) as error:
             template.render({})
+
+        assert error.value.variable == 'variable'
+
+    def test_error_is_thrown_if_template_variable_missing_from_object(self):
+        source = "{{ variable }}"
+        template = Template.from_string(source)
+        Object = namedtuple('Object',  [])
+        with pytest.raises(MissingVariableError) as error:
+            template.render(Object())
 
         assert error.value.variable == 'variable'
 
