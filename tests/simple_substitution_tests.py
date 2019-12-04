@@ -27,6 +27,7 @@ class SimpleSubstitutionTests:
         with pytest.raises(TemplateError) as error:
             Template.from_string(source)
 
+        assert error.value.message == "template string is not closed"
         assert error.value.line == 3
         assert error.value.column == 6
 

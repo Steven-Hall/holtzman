@@ -44,7 +44,7 @@ class VariableNode:
     def __repr__(self) -> str:
         return f'variable node: {self._variable_name_list}'
 
-    def render(self, variables: Any) -> str:
+    def _get_variable_value(self, variables: Any) -> str:
         var = variables
         for variable_name in self._variable_name_list:
             try:
@@ -56,8 +56,11 @@ class VariableNode:
                 raise MissingVariableError(variable_name)
         return var
 
+    def render(self, variables: Any) -> str:
+        return self._get_variable_value(variables)
 
-class IfConditionNode(RootNode):
+
+class IfConditionNode(RootNode, VariableNode):
     def __init__(self, variable_name_list: List[str]):
         super().__init__()
         self._variable_name_list: List[str] = variable_name_list
@@ -66,15 +69,7 @@ class IfConditionNode(RootNode):
         return f'if condition node: {self._variable_name_list}'
 
     def render(self, variables: Any) -> str:
-        var = variables
-        for variable_name in self._variable_name_list:
-            try:
-                if isinstance(var, dict):
-                    var = var[variable_name]
-                else:
-                    var = getattr(var, variable_name)
-            except (KeyError, AttributeError):
-                raise MissingVariableError(variable_name)
+        var = self._get_variable_value(variables)
 
         if var:
             result = []

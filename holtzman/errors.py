@@ -1,8 +1,11 @@
+from typing import Tuple
+
+
 class TemplateError(Exception):
-    def __init__(self, message: str, *, line: int, column: int):
+    def __init__(self, message: str, position: Tuple[int, int]):
         self._message: str = message
-        self._line: int = line
-        self._column: int = column
+        self._line: int = position[0]
+        self._column: int = position[1]
         super().__init__()
 
     @property
@@ -16,6 +19,9 @@ class TemplateError(Exception):
     @property
     def column(self) -> int:
         return self._column
+
+    def __repr__(self) -> str:
+        return f"{self._line}:{self._column}:{self._message}"
 
 
 class MissingVariableError(Exception):
