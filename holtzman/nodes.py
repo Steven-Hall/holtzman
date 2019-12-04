@@ -55,3 +55,30 @@ class VariableNode:
             except (KeyError, AttributeError):
                 raise MissingVariableError(variable_name)
         return var
+
+
+class IfConditionNode(RootNode):
+    def __init__(self, variable_name_list: List[str]):
+        super().__init__()
+        self._variable_name_list: List[str] = variable_name_list
+
+    def __repr__(self) -> str:
+        return f'if condition node: {self._variable_name_list}'
+
+    def render(self, variables: Any) -> str:
+        var = variables
+        for variable_name in self._variable_name_list:
+            try:
+                if isinstance(var, dict):
+                    var = var[variable_name]
+                else:
+                    var = getattr(var, variable_name)
+            except (KeyError, AttributeError):
+                raise MissingVariableError(variable_name)
+
+        if var:
+            result = []
+            for child_node in self._children:
+                result.append(child_node.render(variables))
+            return ''.join(result)
+        return ''

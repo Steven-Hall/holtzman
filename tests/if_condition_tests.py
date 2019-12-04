@@ -26,8 +26,7 @@ class IfConditionTests:
         ("{% if var %}{{ var }}"),
         ("{% if var %}{{ var }}{%"),
         ("{% if var %}{{ var }}{% end"),
-        ("{% if var %}{{ var }}{% end %"),
-        ("{% if var %}{{ var }}{% end %}")])
+        ("{% if var %}{{ var }}{% end %")])
     def test_if_condition_missing_valid_end_statement(self, if_string):
         with pytest.raises(TemplateError):
             Template.from_string(if_string)
@@ -56,13 +55,7 @@ class IfConditionTests:
         assert result == "hello"
 
     def test_nested_conditions_work(self):
-        source = """
-        {% if variable %}
-            {% if variable_2 %}
-                hello
-            {% end %}
-        {% end %}
-        """
+        source = "{% if variable %}{% if variable_2 %}hello{% end %}{% end %}"
         template = Template.from_string(source)
         result = template.render({"variable": True, "variable_2": True})
         assert result == "hello"

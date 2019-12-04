@@ -13,7 +13,7 @@ from holtzman.errors import TemplateError, MissingVariableError
 
 
 class SimpleSubstitutionTests:
-    @pytest.mark.parametrize('source', ['{{ variable', '{{ variable }'])
+    @pytest.mark.parametrize('source', ['{{ variable', '{{ variable }', '{{ }}'])
     def test_invalid_variable_string_throws_error(self, source):
         with pytest.raises(TemplateError):
             Template.from_string(source)
