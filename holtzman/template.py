@@ -1,10 +1,11 @@
 from io import StringIO
 
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Any
 from typing_extensions import Protocol
 
 from .errors import TemplateError
-from .nodes import RootNode, TextNode, VariableNode, IfConditionNode
+from .nodes import RootNode, TextNode, VariableNode, IfConditionNode, ForLoopNode
+from .variables import VariableContext
 
 
 class InputStream(Protocol):
@@ -75,7 +76,8 @@ class Template:
         self._create_text_node(''.join(self._buffer))
 
     def _create_text_node(self, value: str) -> None:
-        self._current_node.add_child(TextNode(value))
+        if len(value) > 0:
+            self._current_node.add_child(TextNode(value))
 
     def _consume_space(self) -> None:
         # skip characters until we find a non-space char or EOF
@@ -89,7 +91,7 @@ class Template:
             self._read_char()
         return ''.join(buffer)
 
-    def _read_variable_name(self) -> List[str]:
+    def _read_variable_name(self) -> str:
         self._error_position = (self._line, self._column)
         buffer: List[str] = []
         while self._current_char in ["_", "."] or self._current_char.isalnum():
@@ -98,7 +100,7 @@ class Template:
 
         if len(buffer) == 0:
             raise TemplateError("empty template string", self._error_position)
-        return ''.join(buffer).split(".")
+        return ''.join(buffer)
 
     def _read_end_statement(self, expected: str) -> None:
         first: str = self._current_char
@@ -112,8 +114,13 @@ class Template:
         self._error_position = (self._line, self._column)
 
         self._consume_space()
-        # TODO don't support nested names here
-        variable_name_list = self._read_variable_name()
+        variable_name = self._read_variable_name()
+
+        if len(variable_name.split('.')) != 1:
+            raise TemplateError("invalid variable name in for loop", self._error_position)
+
+        variable_name = variable_name[0]
+
         self._consume_space()
 
         keyword: str = self._read_until_space()
@@ -125,7 +132,12 @@ class Template:
 
         collection_name = self._read_variable_name()
 
+        self._consume_space()
+
         self._read_end_statement("%}")
+
+        self._push_node()
+        self._current_node = ForLoopNode(variable_name, collection_name)
 
     def _handle_if_condition(self) -> None:
         self._error_position = (self._line, self._column)
@@ -203,5 +215,5 @@ class Template:
         else:
             self._column += 1
 
-    def render(self, variables: Dict[str, str]) -> str:
-        return self._current_node.render(variables)
+    def render(self, variables: Any) -> str:
+        return self._current_node.render(VariableContext(variables))

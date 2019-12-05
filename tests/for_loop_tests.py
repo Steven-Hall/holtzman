@@ -29,8 +29,7 @@ class ForLoopTests:
         ("{% for var in vars %}{{ var }}"),
         ("{% for var in vars %}{{ var }}{%"),
         ("{% for var in vars %}{{ var }}{% end"),
-        ("{% for var in vars %}{{ var }}{% end %"),
-        ("{% for var in vars %}{{ var }}{% end %}")])
+        ("{% for var in vars %}{{ var }}{% end %")])
     def test_for_loop_missing_valid_end_statement(self, loop_string):
         with pytest.raises(TemplateError):
             Template.from_string(loop_string)

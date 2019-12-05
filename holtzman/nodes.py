@@ -1,11 +1,11 @@
 from typing_extensions import Protocol
-from typing import List, Any
+from typing import List
 
-from .errors import MissingVariableError
+from .variables import VariableContext
 
 
 class Node(Protocol):
-    def render(self, variables: Any) -> str:
+    def render(self, variables: VariableContext) -> str:
         pass
 
 
@@ -19,7 +19,7 @@ class RootNode:
     def __repr__(self) -> str:
         return f'root node: {self._children}]'
 
-    def render(self, variables: Any) -> str:
+    def render(self, variables: VariableContext) -> str:
         result = []
         for node in self._children:
             result.append(node.render(variables))
@@ -31,45 +31,33 @@ class TextNode:
         self._text = text
 
     def __repr__(self) -> str:
-        return f'text node: {self._text[0:20]}'
+        return f'text node: "{self._text[0:20]}"'
 
-    def render(self, _variables: Any) -> str:
+    def render(self, _variables: VariableContext) -> str:
         return self._text
 
 
 class VariableNode:
-    def __init__(self, variable_name_list: List[str]):
-        self._variable_name_list: List[str] = variable_name_list
+    def __init__(self, variable_name: str):
+        self._variable_name: str = variable_name
 
     def __repr__(self) -> str:
-        return f'variable node: {self._variable_name_list}'
+        return f'variable node: {self._variable_name}'
 
-    def _get_variable_value(self, variables: Any) -> str:
-        var = variables
-        for variable_name in self._variable_name_list:
-            try:
-                if isinstance(var, dict):
-                    var = var[variable_name]
-                else:
-                    var = getattr(var, variable_name)
-            except (KeyError, AttributeError):
-                raise MissingVariableError(variable_name)
-        return var
-
-    def render(self, variables: Any) -> str:
-        return self._get_variable_value(variables)
+    def render(self, variables: VariableContext) -> str:
+        return variables[self._variable_name].__str__()
 
 
-class IfConditionNode(RootNode, VariableNode):
-    def __init__(self, variable_name_list: List[str]):
-        super().__init__()
-        self._variable_name_list: List[str] = variable_name_list
+class IfConditionNode(RootNode):
+    def __init__(self, variable_name: str):
+        self._variable_name: str = variable_name
+        self._children: List[Node] = []
 
     def __repr__(self) -> str:
-        return f'if condition node: {self._variable_name_list}'
+        return f'if condition node: {self._variable_name}'
 
-    def render(self, variables: Any) -> str:
-        var = self._get_variable_value(variables)
+    def render(self, variables: VariableContext) -> str:
+        var = variables[self._variable_name]
 
         if var:
             result = []
@@ -77,3 +65,24 @@ class IfConditionNode(RootNode, VariableNode):
                 result.append(child_node.render(variables))
             return ''.join(result)
         return ''
+
+
+class ForLoopNode(RootNode):
+    def __init__(self, variable_name: str, collection_name: str):
+        self._variable_name = variable_name
+        self._collection_name = collection_name
+        self._children: List[Node] = []
+
+    def __repr__(self) -> str:
+        return f'for loop node: {self._variable_name}: {self._collection_name}'
+
+    def render(self, variables: VariableContext) -> str:
+        collection = variables[self._collection_name]
+
+        result: List[str] = []
+        for variable in collection:
+            variables.push_context({self._variable_name: variable})
+            for child in self._children:
+                result.append(child.render(variables))
+            variables.pop_context()
+        return ''.join(result)
