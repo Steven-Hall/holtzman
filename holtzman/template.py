@@ -60,7 +60,8 @@ class Template:
         elif self._current_char == '\\':
             self._buffer.append('\\')
         else:
-            raise TemplateError('invalid escape sequence: "\\{self._current_char}"', self._error_position)
+            raise TemplateError('invalid escape sequence: "\\{self._current_char}"',
+                                self._error_position)
 
     def _parse_template(self) -> None:
         self._read_char()
