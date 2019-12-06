@@ -119,8 +119,6 @@ class Template:
         if len(variable_name.split('.')) != 1:
             raise TemplateError("invalid variable name in for loop", self._error_position)
 
-        variable_name = variable_name[0]
-
         self._consume_space()
 
         keyword: str = self._read_until_space()

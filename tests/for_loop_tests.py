@@ -10,7 +10,7 @@ in a template should renderer every entry in 'variables'
 import pytest
 
 from holtzman.template import Template
-from holtzman.errors import TemplateError
+from holtzman.errors import TemplateError, MissingVariableError
 
 
 class ForLoopTests:
@@ -39,17 +39,31 @@ class ForLoopTests:
         with pytest.raises(TemplateError):
             Template.from_string(source)
 
+    def test_assignment_to_complex_variable_name_causes_error(self):
+        source = """
+        {% for complex.var in variables %}
+            {{ complex.var }}
+        {% end %}"""
+        with pytest.raises(TemplateError):
+            Template.from_string(source)
+
     def test_for_loop_renders_each_entry_in_collection(self):
-        source = "{% for var in variables %}{{ var }}{% end %}"
+        source = """
+        {% for var in variables %}
+            {{ var }}
+        {% end %}"""
         template = Template.from_string(source)
         result = template.render({"variables": ["var1", "var2", "var3"]})
-        assert result == "var1var2var3"
+        assert ''.join(result.split()) == "var1var2var3"
 
     def test_for_loop_supports_complex_variable_names(self):
-        source = "{% for var in variables.nested %}{{ var }}{% end %}"
+        source = """
+        {% for var in variables.nested %}
+            {{ var }}
+        {% end %}"""
         template = Template.from_string(source)
         result = template.render({"variables": {"nested": ["var1", "var2", "var3"]}})
-        assert result == "var1var2var3"
+        assert ''.join(result.split()) == "var1var2var3"
 
     def test_nested_for_loops_work(self):
         source = """
@@ -57,12 +71,11 @@ class ForLoopTests:
             {% for sub_var in var %}
                 {{ sub_var }}
             {% end %}
-        {% end %}
-        """
-        variables = [["var1", "var2", "var3"], ["var4", "var5", "var6"]]
+        {% end %}"""
+        variables = {"variables": [["var1", "var2", "var3"], ["var4", "var5", "var6"]]}
         template = Template.from_string(source)
         result = template.render(variables)
-        assert result == "var1var2var3var4var5var6"
+        assert ''.join(result.split()) == "var1var2var3var4var5var6"
 
     def test_child_loop_can_access_parent_variable_in_nested_for_loop(self):
         source = """
@@ -70,13 +83,12 @@ class ForLoopTests:
             {% for child_var in child_variables %}
                 {{ parent_var }}
             {% end %}
-        {% end %}
-        """
+        {% end %}"""
         parent_variables = ["parent1", "parent2", "parent3"]
         child_variables = ["child1", "child2", "child3"]
         template = Template.from_string(source)
         result = template.render({"parent_variables": parent_variables, "child_variables": child_variables})
-        assert result == "parent1parent2parent3parent1parent2parent3parent1parent2parent3"
+        assert ''.join(result.split()) == "parent1parent1parent1parent2parent2parent2parent3parent3parent3"
 
     def test_parent_loop_cannot_access_child_variable_in_nested_for_loop(self):
         source = """
@@ -86,8 +98,12 @@ class ForLoopTests:
             {% end %}
         {% end %}
         """
-        with pytest.raises(TemplateError):
-            Template.from_string(source)
+        parent_variables = ["parent1", "parent2", "parent3"]
+        child_variables = ["child1", "child2", "child3"]
+
+        with pytest.raises(MissingVariableError):
+            template = Template.from_string(source)
+            template.render({"parent_variables": parent_variables, "child_variables": child_variables})
 
     def test_child_variable_overrides_parent_variable_with_same_name(self):
         source = """
@@ -101,4 +117,4 @@ class ForLoopTests:
         child_variables = ["child"]
         template = Template.from_string(source)
         result = template.render({"parent_variables": parent_variables, "child_variables": child_variables})
-        assert result == "child"
+        assert result.strip() == "child"
