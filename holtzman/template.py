@@ -1,19 +1,11 @@
 from io import StringIO
 
-from typing import List, Tuple, Any
-from typing_extensions import Protocol
+from typing import List, Tuple, Any, TextIO
 
 from .errors import TemplateError
 from .nodes import RootNode, TextNode, VariableNode, IfConditionNode, ForLoopNode
 from .variables import VariableContext
-
-
-class InputStream(Protocol):
-    def read(self, number: int) -> str:
-        pass
-
-    def close(self) -> None:
-        pass
+from .input_stream import InputStream
 
 
 class Template:
@@ -24,7 +16,7 @@ class Template:
 
     @staticmethod
     def from_file(source_file: str) -> "Template":
-        source_stream: InputStream = open(source_file, 'r')
+        source_stream: TextIO = open(source_file, 'r')
         try:
             return Template(source_stream)
         finally:
