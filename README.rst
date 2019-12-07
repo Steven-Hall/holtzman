@@ -18,7 +18,6 @@ The main `Template` class is imported from `holtzman.template`.  The constructor
 The `Template.from_string` and `Template.from_file` static methods will compile a template from a string and a file name respectively.
 
 Examples:
-
 ::
     from holtzman.template import Template
 
@@ -27,7 +26,6 @@ Examples:
     file_template = Template.from_file('template.hz')
 
 A compiled template can then be rendered by calling the render method and passing in the required variables, e.g.
-
 :: 
    string_template.render({ 'variable': 'hello_world' })
 
@@ -43,12 +41,10 @@ Variable Substitution
 ^^^^^^^^^^^^^^^^^^^^^
 
 Variables can be embedded in templates using the following format:
-
 ::
    {{ variable_name }}
 
 Nested variables can be embedded:
-
 ::
    {{ parent.child }}
 
