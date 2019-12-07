@@ -22,15 +22,6 @@ class SimpleSubstitutionTests:
     def test_valid_variable_names_do_not_throw_errors(self, source):
         Template.from_string(source)
 
-    def test_invalid_variable_string_error_includes_line_and_column(self):
-        source = "\n\n12345{{ variable }54321\n\n"
-        with pytest.raises(TemplateError) as error:
-            Template.from_string(source)
-
-        assert error.value.message == "template string is not closed"
-        assert error.value.line == 3
-        assert error.value.column == 6
-
     def test_single_opening_brace_is_ignored(self):
         source = "{ variable }"
         template = Template.from_string(source)

@@ -1,6 +1,6 @@
 from io import StringIO
 
-from typing import List, Tuple, Any, TextIO
+from typing import List, Any, TextIO
 
 from .errors import TemplateError
 from .nodes import RootNode, TextNode, VariableNode, IfConditionNode, ForLoopNode
@@ -29,34 +29,25 @@ class Template:
         self._line: int = 1
         self._column: int = 1
 
-        # use to keep useful error information
-        # generally when an error occurs we want the start of the token string
-        # not the current position
-        self._error_positions: List[Tuple[int, int]] = []
-        self._error_position: Tuple[int, int] = (1, 1)
-
         self._current_node: RootNode = RootNode()
-        self._node_stack: List[Tuple[RootNode, Tuple[int, int]]] = []
+        self._node_stack: List[RootNode] = []
 
         self._parse_template()
 
         if len(self._node_stack) != 0:
-            raise TemplateError("missing end statement in template", (self._error_position))
+            raise TemplateError("missing end statement in template", (self._line, self._column))
 
     def _push_node(self) -> None:
-        self._node_stack.append((self._current_node, self._error_position))
+        self._node_stack.append(self._current_node)
 
     def _pop_node(self) -> RootNode:
         if len(self._node_stack) == 0:
-            raise TemplateError("unexpected end statement", self._error_position)
-        (node, error_position) = self._node_stack.pop()
+            raise TemplateError("unexpected end statement", (self._line, self._column))
+        node = self._node_stack.pop()
         node.add_child(self._current_node)
-        self._error_position = error_position
         return node
 
     def _handle_escape_char(self) -> None:
-        self._error_position = (self._line, self._column)
-
         self._read_char()
         if self._current_char == '{':
             self._buffer.append('{')
@@ -64,7 +55,7 @@ class Template:
             self._buffer.append('\\')
         else:
             raise TemplateError('invalid escape sequence: "\\{self._current_char}"',
-                                self._error_position)
+                                (self._line, self._column))
 
     def _parse_template(self) -> None:
         self._read_char()
@@ -96,14 +87,13 @@ class Template:
         return ''.join(buffer)
 
     def _read_variable_name(self) -> str:
-        self._error_position = (self._line, self._column)
         buffer: List[str] = []
         while self._current_char in ["_", "."] or self._current_char.isalnum():
             buffer.append(self._current_char)
             self._read_char()
 
         if len(buffer) == 0:
-            raise TemplateError("empty template string", self._error_position)
+            raise TemplateError("empty template string", (self._line, self._column))
         return ''.join(buffer)
 
     def _read_end_statement(self, expected: str) -> None:
@@ -112,23 +102,21 @@ class Template:
         second: str = self._current_char
 
         if ''.join([first, second]) != expected:
-            raise TemplateError("template string is not closed", self._error_position)
+            raise TemplateError("template string is not closed", (self._line, self._column))
 
     def _handle_for_loop(self) -> None:
-        self._error_position = (self._line, self._column)
-
         self._consume_space()
         variable_name = self._read_variable_name()
 
         if len(variable_name.split('.')) != 1:
-            raise TemplateError("invalid variable name in for loop", self._error_position)
+            raise TemplateError("invalid variable name in for loop", (self._line, self._column))
 
         self._consume_space()
 
         keyword: str = self._read_until_space()
 
         if keyword != 'in':
-            raise TemplateError('for statement missing "in"', self._error_position)
+            raise TemplateError('for statement missing "in"', (self._line, self._column))
 
         self._consume_space()
 
@@ -142,8 +130,6 @@ class Template:
         self._current_node = ForLoopNode(variable_name, collection_name)
 
     def _handle_if_condition(self) -> None:
-        self._error_position = (self._line, self._column)
-
         self._consume_space()
         variable_name_list = self._read_variable_name()
         self._consume_space()
@@ -155,15 +141,11 @@ class Template:
 
     def _handle_variable(self):
         # count the column from the opening {
-        self._error_position = (self._line, self._column - 2)
-
         self._read_char()
         self._consume_space()
-        self._error_positions.append(self._error_position)
 
         variable_name_list = self._read_variable_name()
 
-        self._error_position = self._error_positions.pop()
         self._consume_space()
 
         self._read_end_statement("}}")
@@ -171,8 +153,6 @@ class Template:
         self._current_node.add_child(VariableNode(variable_name_list))
 
     def _handle_end_statement(self):
-        self._error_position = (self._line, self._column)
-
         self._consume_space()
 
         self._read_end_statement("%}")
@@ -191,7 +171,7 @@ class Template:
         elif keyword == 'end':
             self._handle_end_statement()
         else:
-            raise TemplateError(f'Unexpected Keyword {keyword}', self._error_position)
+            raise TemplateError(f'Unexpected Keyword {keyword}', (self._line, self._column))
 
     def _handle_template_string(self) -> None:
         self._read_char()
