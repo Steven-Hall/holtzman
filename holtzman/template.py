@@ -12,12 +12,23 @@ class InputStream(Protocol):
     def read(self, number: int) -> str:
         pass
 
+    def close(self) -> None:
+        pass
+
 
 class Template:
     @staticmethod
     def from_string(source: str) -> "Template":
         source_stream: StringIO = StringIO(source)
         return Template(source_stream)
+
+    @staticmethod
+    def from_file(source_file: str) -> "Template":
+        source_stream: InputStream = open(source_file, 'r')
+        try:
+            return Template(source_stream)
+        finally:
+            source_stream.close()
 
     def __init__(self, source: InputStream):
         self._source: InputStream = source

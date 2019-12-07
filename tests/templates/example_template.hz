@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <ul>
+	    {% for item in items %}
+            <li>{{ item }}</li>
+            {% end %}
+    </body>
+</html>
