@@ -5,29 +5,28 @@ from typing import List, Any, TextIO
 from .errors import TemplateError
 from .nodes import RootNode, TextNode, VariableNode, IfConditionNode, ForLoopNode
 from .variables import VariableContext
-from .input_stream import InputStream
+from .template_source import TemplateSource
 
 
 class Template:
     @staticmethod
     def from_string(source: str) -> "Template":
         source_stream: StringIO = StringIO(source)
-        return Template(source_stream)
+        template_source = TemplateSource(source_stream)
+        return Template(template_source)
 
     @staticmethod
     def from_file(source_file: str) -> "Template":
         source_stream: TextIO = open(source_file, 'r')
         try:
-            return Template(source_stream)
+            template_source = TemplateSource(source_stream)
+            return Template(template_source)
         finally:
             source_stream.close()
 
-    def __init__(self, source: InputStream):
-        self._source: InputStream = source
-        self._current_char: str = ''
+    def __init__(self, source: TemplateSource):
+        self._source: TemplateSource = source
         self._buffer: List[str] = []
-        self._line: int = 1
-        self._column: int = 1
 
         self._current_node: RootNode = RootNode()
         self._node_stack: List[RootNode] = []
@@ -35,39 +34,39 @@ class Template:
         self._parse_template()
 
         if len(self._node_stack) != 0:
-            raise TemplateError("missing end statement in template", (self._line, self._column))
+            raise TemplateError("missing end statement in template", self._source.position)
 
     def _push_node(self) -> None:
         self._node_stack.append(self._current_node)
 
     def _pop_node(self) -> RootNode:
         if len(self._node_stack) == 0:
-            raise TemplateError("unexpected end statement", (self._line, self._column))
+            raise TemplateError("unexpected end statement", self._source.position)
         node = self._node_stack.pop()
         node.add_child(self._current_node)
         return node
 
     def _handle_escape_char(self) -> None:
-        self._read_char()
-        if self._current_char == '{':
+        self._source.read_char()
+        if self._source.current_char == '{':
             self._buffer.append('{')
-        elif self._current_char == '\\':
+        elif self._source.current_char == '\\':
             self._buffer.append('\\')
         else:
             raise TemplateError('invalid escape sequence: "\\{self._current_char}"',
-                                (self._line, self._column))
+                                self._source.position)
 
     def _parse_template(self) -> None:
-        self._read_char()
+        self._source.read_char()
 
-        while self._current_char != '':
-            if self._current_char == "{":
+        while self._source.current_char != '':
+            if self._source.next_char == "{":
                 self._handle_template_string()
-            elif self._current_char == "\\":
+            elif self._source.next_char == "\\":
                 self._handle_escape_char()
             else:
-                self._buffer.append(self._current_char)
-            self._read_char()
+                self._buffer.append(self._source.current_char)
+            self._source.read_char()
         self._create_text_node(''.join(self._buffer))
 
     def _create_text_node(self, value: str) -> None:
@@ -76,47 +75,47 @@ class Template:
 
     def _consume_space(self) -> None:
         # skip characters until we find a non-space char or EOF
-        while self._current_char.isspace() and self._current_char != '':
-            self._read_char()
+        while self._source.current_char.isspace() and self._source.current_char != '':
+            self._source.read_char()
 
     def _read_until_space(self) -> str:
         buffer: List[str] = []
-        while (not self._current_char.isspace()) and self._current_char != '':
-            buffer.append(self._current_char)
-            self._read_char()
+        while (not self._source.current_char.isspace() and self._source.current_char != ''):
+            buffer.append(self._source.current_char)
+            self._source.read_char()
         return ''.join(buffer)
 
     def _read_variable_name(self) -> str:
         buffer: List[str] = []
-        while self._current_char in ["_", "."] or self._current_char.isalnum():
-            buffer.append(self._current_char)
-            self._read_char()
+        while self._source.current_char in ["_", "."] or self._source.current_char.isalnum():
+            buffer.append(self._source.current_char)
+            self._source.read_char()
 
         if len(buffer) == 0:
-            raise TemplateError("empty template string", (self._line, self._column))
+            raise TemplateError("empty template string", self._source.position)
         return ''.join(buffer)
 
     def _read_end_statement(self, expected: str) -> None:
-        first: str = self._current_char
-        self._read_char()
-        second: str = self._current_char
+        first: str = self._source.current_char
+        self._source.read_char()
+        second: str = self._source.current_char
 
         if ''.join([first, second]) != expected:
-            raise TemplateError("template string is not closed", (self._line, self._column))
+            raise TemplateError("template string is not closed", self._source.position)
 
     def _handle_for_loop(self) -> None:
         self._consume_space()
         variable_name = self._read_variable_name()
 
         if len(variable_name.split('.')) != 1:
-            raise TemplateError("invalid variable name in for loop", (self._line, self._column))
+            raise TemplateError("invalid variable name in for loop", self._source.position)
 
         self._consume_space()
 
         keyword: str = self._read_until_space()
 
         if keyword != 'in':
-            raise TemplateError('for statement missing "in"', (self._line, self._column))
+            raise TemplateError('for statement missing "in"', self._source.position)
 
         self._consume_space()
 
@@ -141,7 +140,7 @@ class Template:
 
     def _handle_variable(self):
         # count the column from the opening {
-        self._read_char()
+        self._source.read_char()
         self._consume_space()
 
         variable_name_list = self._read_variable_name()
@@ -160,7 +159,7 @@ class Template:
         self._current_node = self._pop_node()
 
     def _handle_if_or_loop(self) -> None:
-        self._read_char()  # consume the %
+        self._source.read_char()  # consume the %
         self._consume_space()
 
         keyword = self._read_until_space()
@@ -171,15 +170,15 @@ class Template:
         elif keyword == 'end':
             self._handle_end_statement()
         else:
-            raise TemplateError(f'Unexpected Keyword {keyword}', (self._line, self._column))
+            raise TemplateError(f'Unexpected Keyword {keyword}', self._source.position)
 
     def _handle_template_string(self) -> None:
-        self._read_char()
-        if self._current_char == '%':
+        self._source.read_char()
+        if self._source.current_char == '%':
             self._create_text_node(''.join(self._buffer))
             self._buffer = []
             self._handle_if_or_loop()
-        elif self._current_char == '{':
+        elif self._source.current_char == '{':
             self._create_text_node(''.join(self._buffer))
             self._buffer = []
             self._handle_variable()
@@ -187,15 +186,7 @@ class Template:
             # otherwise not a real template string so add the
             # already read characters onto the buffer and return
             self._buffer.append('{')
-            self._buffer.append(self._current_char)
-
-    def _read_char(self) -> None:
-        self._current_char = self._source.read(1)
-        if self._current_char == "\n":
-            self._line += 1
-            self._column = 1
-        else:
-            self._column += 1
+            self._buffer.append(self._source.current_char)
 
     def render(self, variables: Any) -> str:
         return self._current_node.render(VariableContext(variables))
