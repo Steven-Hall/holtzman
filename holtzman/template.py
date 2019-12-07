@@ -27,10 +27,8 @@ class Template:
     def __init__(self, source: TemplateSource):
         self._source: TemplateSource = source
         self._buffer: List[str] = []
-
         self._current_node: RootNode = RootNode()
         self._node_stack: List[RootNode] = []
-
         self._parse_template()
 
         if len(self._node_stack) != 0:
@@ -47,6 +45,7 @@ class Template:
         return node
 
     def _handle_escape_char(self) -> None:
+        # pylint: disable=raising-format-tuple
         self._source.read_char()
         if self._source.current_char == '{':
             self._buffer.append('{')
@@ -58,11 +57,10 @@ class Template:
 
     def _parse_template(self) -> None:
         self._source.read_char()
-
         while self._source.current_char != '':
-            if self._source.next_char == "{":
+            if self._source.current_char == "{":
                 self._handle_template_string()
-            elif self._source.next_char == "\\":
+            elif self._source.current_char == "\\":
                 self._handle_escape_char()
             else:
                 self._buffer.append(self._source.current_char)
@@ -118,13 +116,9 @@ class Template:
             raise TemplateError('for statement missing "in"', self._source.position)
 
         self._consume_space()
-
         collection_name = self._read_variable_name()
-
         self._consume_space()
-
         self._read_end_statement("%}")
-
         self._push_node()
         self._current_node = ForLoopNode(variable_name, collection_name)
 
@@ -132,30 +126,21 @@ class Template:
         self._consume_space()
         variable_name_list = self._read_variable_name()
         self._consume_space()
-
         self._read_end_statement("%}")
-
         self._push_node()
         self._current_node = IfConditionNode(variable_name_list)
 
     def _handle_variable(self):
-        # count the column from the opening {
         self._source.read_char()
         self._consume_space()
-
         variable_name_list = self._read_variable_name()
-
         self._consume_space()
-
         self._read_end_statement("}}")
-
         self._current_node.add_child(VariableNode(variable_name_list))
 
     def _handle_end_statement(self):
         self._consume_space()
-
         self._read_end_statement("%}")
-
         self._current_node = self._pop_node()
 
     def _handle_if_or_loop(self) -> None:
