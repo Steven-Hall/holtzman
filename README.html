@@ -50,3 +50,17 @@
 </dl>
 <p>{% end %}</p>
 </blockquote>
+<p>For loops and if conditions can be nested arbitrarily, e.g:</p>
+<blockquote>
+<dl>
+<dt>{% for parent in parent_list %}</dt>
+<dd><dl>
+<dt>{% for child in child_list %}</dt>
+<dd><p>{{ parent }} : {{ child }}</p>
+</dd>
+</dl>
+<p>{% end %}</p>
+</dd>
+</dl>
+<p>{% end %}</p>
+</blockquote>
