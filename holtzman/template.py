@@ -2,7 +2,7 @@ from io import StringIO
 
 from typing import List, Any, TextIO
 
-from .errors import TemplateError
+from .errors import TemplateError, ErrorCode as e
 from .nodes import RootNode, TextNode, VariableNode, IfConditionNode, ForLoopNode
 from .variables import VariableContext
 from .template_source import TemplateSource
@@ -32,7 +32,7 @@ class Template:
         self._parse_template()
 
         if len(self._node_stack) != 0:
-            raise TemplateError("missing end statement in template", self._source.position)
+            raise TemplateError(e.MISSING_END_STATEMENT, self._source.position)
 
     def render(self, variables: Any) -> str:
         return self._current_node.render(VariableContext(variables))
@@ -54,21 +54,35 @@ class Template:
 
     def _pop_node(self) -> RootNode:
         if len(self._node_stack) == 0:
-            raise TemplateError("unexpected end statement", self._source.position)
+            raise TemplateError(e.UNEXPECTED_END_STATEMENT, self._source.bookmark)
         node = self._node_stack.pop()
         node.add_child(self._current_node)
         return node
 
+    def _handle_template_string(self) -> None:
+        self._source.read_char()
+        if self._source.current_char == '%':
+            self._create_text_node(''.join(self._buffer))
+            self._buffer = []
+            self._handle_if_or_loop()
+        elif self._source.current_char == '{':
+            self._create_text_node(''.join(self._buffer))
+            self._buffer = []
+            self._handle_variable()
+        else:
+            # otherwise not a real template string so add the
+            # already read characters onto the buffer and return
+            self._buffer.append('{')
+            self._buffer.append(self._source.current_char)
+
     def _handle_escape_char(self) -> None:
-        # pylint: disable=raising-format-tuple
         self._source.read_char()
         if self._source.current_char == '{':
             self._buffer.append('{')
         elif self._source.current_char == '\\':
             self._buffer.append('\\')
         else:
-            raise TemplateError('invalid escape sequence: "\\{self._current_char}"',
-                                self._source.position)
+            raise TemplateError(e.INVALID_ESCAPE_SEQUENCE, self._source.bookmark)
 
     def _create_text_node(self, value: str) -> None:
         if len(value) > 0:
@@ -86,37 +100,19 @@ class Template:
             self._source.read_char()
         return ''.join(buffer)
 
-    def _read_variable_name(self) -> str:
-        buffer: List[str] = []
-        while self._source.current_char in ["_", "."] or self._source.current_char.isalnum():
-            buffer.append(self._source.current_char)
-            self._source.read_char()
-
-        if len(buffer) == 0:
-            raise TemplateError("empty template string", self._source.position)
-        return ''.join(buffer)
-
-    def _read_end_statement(self, expected: str) -> None:
-        first: str = self._source.current_char
-        self._source.read_char()
-        second: str = self._source.current_char
-
-        if ''.join([first, second]) != expected:
-            raise TemplateError("template string is not closed", self._source.position)
-
     def _handle_for_loop(self) -> None:
         self._consume_space()
         variable_name = self._read_variable_name()
 
         if len(variable_name.split('.')) != 1:
-            raise TemplateError("invalid variable name in for loop", self._source.position)
+            raise TemplateError(e.INVALID_VARIABLE_NAME, self._source.bookmark)
 
         self._consume_space()
 
         keyword: str = self._read_until_space()
 
         if keyword != 'in':
-            raise TemplateError('for statement missing "in"', self._source.position)
+            raise TemplateError(e.INVALID_FOR_LOOP, self._source.bookmark)
 
         self._consume_space()
         collection_name = self._read_variable_name()
@@ -141,10 +137,28 @@ class Template:
         self._read_end_statement("}}")
         self._current_node.add_child(VariableNode(variable_name_list))
 
+    def _read_variable_name(self) -> str:
+        buffer: List[str] = []
+        while self._source.current_char in ["_", "."] or self._source.current_char.isalnum():
+            buffer.append(self._source.current_char)
+            self._source.read_char()
+
+        if len(buffer) == 0:
+            raise TemplateError(e.EMPTY_VARIABLE_STRING, self._source.bookmark)
+        return ''.join(buffer)
+
     def _handle_end_statement(self):
         self._consume_space()
         self._read_end_statement("%}")
         self._current_node = self._pop_node()
+
+    def _read_end_statement(self, expected: str) -> None:
+        first: str = self._source.current_char
+        self._source.read_char()
+        second: str = self._source.current_char
+
+        if ''.join([first, second]) != expected:
+            raise TemplateError(e.INVALID_TEMPLATE_STRING, self._source.position)
 
     def _handle_if_or_loop(self) -> None:
         self._source.read_char()  # consume the %
@@ -158,20 +172,4 @@ class Template:
         elif keyword == 'end':
             self._handle_end_statement()
         else:
-            raise TemplateError(f'Unexpected Keyword {keyword}', self._source.position)
-
-    def _handle_template_string(self) -> None:
-        self._source.read_char()
-        if self._source.current_char == '%':
-            self._create_text_node(''.join(self._buffer))
-            self._buffer = []
-            self._handle_if_or_loop()
-        elif self._source.current_char == '{':
-            self._create_text_node(''.join(self._buffer))
-            self._buffer = []
-            self._handle_variable()
-        else:
-            # otherwise not a real template string so add the
-            # already read characters onto the buffer and return
-            self._buffer.append('{')
-            self._buffer.append(self._source.current_char)
+            raise TemplateError(e.INVALID_TEMPLATE_STRING, self._source.position)
