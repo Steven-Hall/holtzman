@@ -10,7 +10,7 @@ class CompilationErrorHandlingTests:
             Template.from_string("{% if var %}")
 
         assert error.value.error_code == ErrorCode.MISSING_END_STATEMENT
-        assert error.value.position == (1, 15)
+        assert error.value.position == (1, 13)
 
     def test_unexpected_end_statement(self):
         with pytest.raises(TemplateError) as error:
@@ -54,7 +54,7 @@ class CompilationErrorHandlingTests:
         assert error.value.error_code == ErrorCode.INVALID_FOR_LOOP
         assert error.value.position == (1, 6)
 
-    def test_template_string(self):
+    def test_invalid_template_string(self):
         with pytest.raises(TemplateError) as error:
             Template.from_string("12345{% invalid statement %}{% end %}")
 

@@ -40,12 +40,14 @@ class Template:
     def _parse_template(self) -> None:
         self._source.read_char()
         while self._source.current_char != '':
+            self._source.add_bookmark()
             if self._source.current_char == "{":
                 self._handle_template_string()
             elif self._source.current_char == "\\":
                 self._handle_escape_char()
             else:
                 self._buffer.append(self._source.current_char)
+            self._source.remove_bookmark()
             self._source.read_char()
         self._create_text_node(''.join(self._buffer))
 
@@ -102,10 +104,13 @@ class Template:
 
     def _handle_for_loop(self) -> None:
         self._consume_space()
+        self._source.add_bookmark()
         variable_name = self._read_variable_name()
 
         if len(variable_name.split('.')) != 1:
             raise TemplateError(e.INVALID_VARIABLE_NAME, self._source.bookmark)
+
+        self._source.remove_bookmark()
 
         self._consume_space()
 
@@ -158,7 +163,7 @@ class Template:
         second: str = self._source.current_char
 
         if ''.join([first, second]) != expected:
-            raise TemplateError(e.INVALID_TEMPLATE_STRING, self._source.position)
+            raise TemplateError(e.INVALID_TEMPLATE_STRING, self._source.bookmark)
 
     def _handle_if_or_loop(self) -> None:
         self._source.read_char()  # consume the %
@@ -172,4 +177,4 @@ class Template:
         elif keyword == 'end':
             self._handle_end_statement()
         else:
-            raise TemplateError(e.INVALID_TEMPLATE_STRING, self._source.position)
+            raise TemplateError(e.INVALID_TEMPLATE_STRING, self._source.bookmark)
