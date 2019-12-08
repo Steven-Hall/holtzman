@@ -34,6 +34,21 @@ class Template:
         if len(self._node_stack) != 0:
             raise TemplateError("missing end statement in template", self._source.position)
 
+    def render(self, variables: Any) -> str:
+        return self._current_node.render(VariableContext(variables))
+
+    def _parse_template(self) -> None:
+        self._source.read_char()
+        while self._source.current_char != '':
+            if self._source.current_char == "{":
+                self._handle_template_string()
+            elif self._source.current_char == "\\":
+                self._handle_escape_char()
+            else:
+                self._buffer.append(self._source.current_char)
+            self._source.read_char()
+        self._create_text_node(''.join(self._buffer))
+
     def _push_node(self) -> None:
         self._node_stack.append(self._current_node)
 
@@ -54,18 +69,6 @@ class Template:
         else:
             raise TemplateError('invalid escape sequence: "\\{self._current_char}"',
                                 self._source.position)
-
-    def _parse_template(self) -> None:
-        self._source.read_char()
-        while self._source.current_char != '':
-            if self._source.current_char == "{":
-                self._handle_template_string()
-            elif self._source.current_char == "\\":
-                self._handle_escape_char()
-            else:
-                self._buffer.append(self._source.current_char)
-            self._source.read_char()
-        self._create_text_node(''.join(self._buffer))
 
     def _create_text_node(self, value: str) -> None:
         if len(value) > 0:
@@ -172,6 +175,3 @@ class Template:
             # already read characters onto the buffer and return
             self._buffer.append('{')
             self._buffer.append(self._source.current_char)
-
-    def render(self, variables: Any) -> str:
-        return self._current_node.render(VariableContext(variables))
