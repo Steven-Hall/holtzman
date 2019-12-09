@@ -7,13 +7,19 @@ from .template import Template
 
 
 class TemplateParser:
-    def __init__(self, source: TemplateSource):
-        self._source: TemplateSource = source
+    def __init__(self):
+        self._source: TemplateSource = None
         self._buffer: List[str] = []
         self._current_node: RootNode = RootNode()
         self._node_stack: List[RootNode] = []
 
-    def parse_template(self) -> Template:
+    def parse_template(self, source: TemplateSource) -> Template:
+        # reset instance variables
+        self._source = source
+        self._buffer = []
+        self._current_node = RootNode()
+        self._node_stack = []
+
         self._source.read_char()
         while self._source.current_char != '':
             self._source.add_bookmark()
